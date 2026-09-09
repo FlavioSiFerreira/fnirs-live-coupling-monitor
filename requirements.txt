@@ -1,0 +1,9 @@
+# Runtime dependencies for the live monitor.
+numpy>=1.26,<3
+scipy>=1.11
+torch>=2.1
+chronos-forecasting>=1.4
+
+# Only needed by reproduce_poster_numbers.py. Small next to torch, so it is
+# installed with everything else to keep the setup a single step.
+pandas>=2.0
