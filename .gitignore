@@ -4,6 +4,9 @@
 # Chronos is downloaded, never committed
 models/
 
+# offline install wheels, supplied per machine
+wheels/
+
 # generated at run time
 results/
 demo_recording.txt

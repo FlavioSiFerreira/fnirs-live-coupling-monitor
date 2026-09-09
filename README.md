@@ -1,14 +1,13 @@
 # fNIRS Live Coupling Quality Monitor
 
-Tells you **while the recording is running** whether the fNIRS sensor is properly
-coupled to the skin, so you can fix it before the participant goes home.
+Tells you during a recording whether the fNIRS sensor is properly coupled, so you
+can fix it before the participant goes home.
 
-It works by asking a pretrained time series model to forecast the next 2 seconds
-of the optical signal from the previous 6 seconds. A well coupled sensor carries
-a steady cardiac pulsation, which the model predicts easily. Lose contact and the
-pulsation goes with it, the forecast error jumps, and the score turns red.
-
-Nothing is trained, fitted or calibrated. The model has never seen fNIRS data.
+A pretrained time series model forecasts the next 2 seconds of the optical signal
+from the previous 6. A well coupled sensor carries a steady cardiac pulsation,
+which the model predicts easily. Lose contact and the pulsation goes with it, the
+forecast error jumps, and the score turns red. The model is used as shipped, with
+no training or calibration on fNIRS data.
 
 ```
   [  42.0s] GOOD       NRMSE=0.184  [placement stable]
@@ -24,89 +23,77 @@ Nothing is trained, fitted or calibrated. The model has never seen fNIRS data.
 | POOR | above 0.49 | reposition the sensor |
 
 The cutting points are the 33rd and 67th percentiles of 905 windows from 24
-recordings, checked against Youden J cut points derived from an independent
-cardiac reference. `reproduce_poster_numbers.py` prints how closely the two
-agree.
+recordings, checked against Youden J cut points from an independent cardiac
+reference. `reproduce_poster_numbers.py` prints how closely the two agree.
 
----
+## Quick start on Windows
 
-## Quick start on Windows, three steps
+1. Install Python 3.10 or newer from <https://www.python.org/downloads/>. Tick
+   **Add python.exe to PATH** in the installer. Skip this if you already have it.
+2. Download this repository: green **Code** button, **Download ZIP**, unzip it
+   somewhere you can write to.
+3. Double-click **`Run Self Test.bat`**.
 
-1. **Install Python.** Get it from <https://www.python.org/downloads/> and, in
-   the installer, **tick "Add python.exe to PATH"**. Any version from 3.10
-   onwards works. If Python is already installed, skip this.
-2. **Download this repository.** Green **Code** button at the top of the page,
-   then **Download ZIP**. Unzip it anywhere you can write to, for example your
-   Desktop.
-3. **Double-click `Start Monitor.bat`.**
+The first run builds a Python environment inside the folder and downloads
+Chronos, which takes a few minutes. Later runs start in seconds. If it is
+interrupted, run it again and it picks up where it stopped.
 
-That is the whole install. The first run takes a few minutes: it builds a private
-Python environment inside the folder and downloads the Chronos model. Every run
-after that starts in seconds.
-
-### Three things you can double-click
-
-| file | what happens |
+| file | what it does |
 |------|--------------|
-| `Run Self Test.bat` | checks the whole chain end to end, no sensor needed. **Start here.** |
+| `Run Self Test.bat` | checks the whole chain, no sensor needed. Start here. |
 | `Run Demo.bat` | writes a synthetic recording that loses contact and replays it, so you can watch the tier drop and recover. No sensor needed. |
 | `Start Monitor.bat` | the real thing. Watches the OpenSignals folder and scores your live recording. |
 
-### Using it with the hardware
+### With the hardware
 
-1. Double-click `Start Monitor.bat` and wait for it to say it is watching.
-2. Start OpenSignals (r)evolution and connect the biosignalsplux device.
-3. Press record. The monitor finds the new `.txt` file on its own and prints a
-   score every 2 seconds.
-4. Press Ctrl+C when you are done.
+Launch `Start Monitor.bat`, then start OpenSignals (r)evolution and press record.
+The monitor picks up the new file and prints a score every 2 seconds. Ctrl+C to
+stop. Scores are appended to `results/fnirs/live_monitor_log.csv`.
 
-Every score is also written to `results/fnirs/live_monitor_log.csv`.
-
----
+Detection looks for files named `opensignals_*.txt`, which is what OpenSignals
+writes by default. Point it elsewhere with `--watch-dir`.
 
 ## Chronos is not in this repository
 
 Chronos T5 Small is Amazon's model, not ours, so it is not redistributed here.
 The launcher installs the `chronos-forecasting` package and downloads the
-checkpoint (about 190 MB) from the Hugging Face Hub the first time you run it.
-You do not have to do anything.
+checkpoint (about 190 MB) on first run. You do not have to do anything.
 
 ### No internet on the recording computer
 
-Recording machines are often offline. Set it up once on a machine that does have
-internet, then carry the folder across.
+On a computer that does have internet, in this folder:
 
-1. On a computer with internet, download the model. Either run
-   `Run Self Test.bat` once, which caches it, or fetch the files directly from
-   <https://huggingface.co/amazon/chronos-t5-small> (the **Files and versions**
-   tab, take everything).
-2. Put the model files in a folder called `chronos-t5-small` inside a folder
-   called `models`, next to the launchers:
+```
+py -3 -m pip download -r requirements.txt -d wheels
+```
 
-   ```
-   fnirs-live-coupling-monitor\
-       Start Monitor.bat
-       fnirs_live_monitor.py
-       models\
-           chronos-t5-small\
-               config.json
-               model.safetensors
-               ... the rest of the files
-   ```
+Then download the model files from
+<https://huggingface.co/amazon/chronos-t5-small> (the **Files and versions** tab)
+into `models\chronos-t5-small`, so the folder looks like this:
 
-3. Copy the whole `fnirs-live-coupling-monitor` folder, including the `.venv`
-   folder the first run created, onto the offline machine.
-4. Double-click `Start Monitor.bat`. It finds `models\chronos-t5-small` by itself
-   and never touches the network.
+```
+fnirs-live-coupling-monitor\
+    Start Monitor.bat
+    wheels\               the downloaded packages
+    models\
+        chronos-t5-small\
+            config.json
+            model.safetensors
+            ...
+```
 
-You can also point at a model folder anywhere on disk by setting the
-`CHRONOS_LOCAL_DIR` environment variable.
+Copy the folder across and double-click `Start Monitor.bat`. It installs from
+`wheels\`, loads the model from `models\`, and never touches the network. Python
+still has to be installed on that computer.
 
----
+Do not copy the `.venv` folder between machines. It hardcodes paths from the
+machine that built it and will not start elsewhere. The launcher rebuilds it.
+
+`CHRONOS_LOCAL_DIR` points at a model folder anywhere on disk if you prefer.
 
 ## Not on Windows
 
-The launchers are Windows batch files, but nothing else is Windows specific.
+Only the launchers are Windows specific.
 
 ```
 python -m venv .venv
@@ -115,8 +102,6 @@ pip install -r requirements.txt
 python fnirs_live_monitor.py --selftest
 python fnirs_live_monitor.py --watch-dir /path/to/opensignals/files
 ```
-
----
 
 ## Options
 
@@ -127,14 +112,12 @@ python fnirs_live_monitor.py --watch-dir /path/to/opensignals/files
 | `--demo-quality good\|poor\|mixed` | profile for `--make-demo` (default mixed) |
 | `--replay FILE` | replay a recording window by window as if it were live |
 | `--speed S`, `--loop` | replay speed multiplier, loop the replay |
-| `--watch-dir PATH` | watch a different OpenSignals folder, repeatable |
+| `--watch-dir PATH` | watch a different folder, repeatable |
 | `--red-col N`, `--ir-col N` | 0-based columns of the 660 and 860 nm channels (default 2 and 3) |
 | `--show-r2` | also display R squared, a secondary diagnostic |
 | `--no-color` | plain text output |
 
-Pass them straight to the launcher, for example `Start Monitor.bat --show-r2`.
-
----
+Pass them to the launcher, for example `Start Monitor.bat --show-r2`.
 
 ## Reproducing the poster numbers
 
@@ -142,61 +125,31 @@ Pass them straight to the launcher, for example `Start Monitor.bat --show-r2`.
 python reproduce_poster_numbers.py
 ```
 
-It recomputes every number printed on the poster from the CSV files in `data/`
-and prints PASS or FAIL for each. All 24 pass at the 6 s context and 2 s horizon
-configuration, including the three deliberate perturbations and the paper sheet
-spike. The script also reports where the percentile cutting points sit against
-the Youden J bootstrap intervals rather than only asserting that they agree.
-
----
-
-## What is in here
-
-| file | purpose |
-|------|---------|
-| `Start Monitor.bat` | live monitoring, double-click to run |
-| `Run Demo.bat` | synthetic recording plus replay, no hardware |
-| `Run Self Test.bat` | end to end check, no hardware |
-| `_setup.bat` | shared first-run setup, called by the three above |
-| `fnirs_live_monitor.py` | the monitor: file watching, Beer Lambert conversion, scoring, replay, demo generator |
-| `chronos_wrapper.py` | loads Chronos T5 Small from the Hub or a local folder |
-| `metrics.py` | NRMSE, R squared and the other forecast metrics |
-| `reproduce_poster_numbers.py` | recomputes the poster numbers from `data/` |
-| `data/` | per window results behind the poster, see `data/README.md` |
-| `requirements.txt` | Python dependencies |
-
----
+Recomputes every number on the poster from the CSV files in `data/` and prints
+PASS or FAIL for each. All 24 pass. See `data/README.md` for what each file
+holds.
 
 ## How the score is computed
 
-1. Read the tail of the growing OpenSignals `.txt` file, columns 2 and 3, at
-   1000 Hz.
-2. Downsample to 10 Hz by polyphase resampling.
-3. Convert the 660 and 860 nm intensities to delta HbO with the modified Beer
-   Lambert law, against a 5 second rolling baseline.
-4. Give the model the last 6 seconds (60 samples) and ask for the next 2 seconds
-   (20 samples).
-5. Report the normalised RMSE between the forecast and what actually arrived.
-   NRMSE is divided by the signal range, so it does not care about scale or
-   offset.
+Read the tail of the growing OpenSignals file at 1000 Hz, downsample to 10 Hz,
+convert the 660 and 860 nm intensities to delta HbO with the modified Beer
+Lambert law against a 5 second baseline, give the model the last 60 samples and
+ask for the next 20, then report the RMSE of that forecast divided by the range
+of the measured segment.
 
-The score follows the pulse, not the brightness. Ordinary changes in headband
-pressure move the light level without moving the score.
+Dividing by the range makes the score independent of scale and offset, so it
+follows the pulse rather than the brightness. Changing headband pressure moves
+the light level without moving the score.
 
----
+## Limitations
 
-## Limitations, please read
-
-- Validated on **one healthy adult**, 24 recordings, biceps brachii and
-  forehead. Nothing here is clinically validated.
-- Agreement with the cardiac reference is **weak**, AUC 0.62 to 0.65. This is a
-  live triage aid, not a replacement for offline quality control.
-- It answers "is this collecting a physiological signal" and not "is the light
-  intensity right". Different headband pressures are not detected.
-- Each score costs about 0.4 s of CPU time, so the practical update rate is a
-  couple of seconds.
-
----
+- Validated on one healthy adult, 24 recordings, biceps brachii and forehead.
+  Not clinically validated.
+- Agreement with the cardiac reference is weak, AUC 0.62 to 0.65. This is a live
+  triage aid, not a replacement for offline quality control.
+- It answers whether a physiological signal is being collected, not whether the
+  light intensity is right. Different headband pressures are not detected.
+- Each score costs about 0.4 s of CPU, so updates are a couple of seconds apart.
 
 ## Citation
 
@@ -204,14 +157,10 @@ Ferreira F, Ferreira H, Placido da Silva H. Zero-shot signal quality assessment
 for physiological recordings using pretrained time series foundation models.
 Poster, 2026.
 
-The forecasting model is Chronos:
-
 Ansari AF, Stella L, Turkmen C, et al. Chronos: learning the language of time
 series. Transactions on Machine Learning Research. 2024.
-
----
 
 ## Licence
 
 MIT, see `LICENSE`. Chronos T5 Small is distributed separately by Amazon under
-its own licence, which applies to the model you download.
+its own licence.

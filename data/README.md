@@ -11,10 +11,14 @@ the `config` column says otherwise.
 | `poster_numbers_6s2s.csv` | 905 | one row per analysis window across 24 recordings: cardiac harmonic SNR, heart rate, Chronos NRMSE, latency. The main table behind Figures 3 and 4. |
 | `both_models_windows.csv` | 856 | the windows scored by both Chronos and TimesFM, 852 of which produced a finite result for both. Behind Figure 2. |
 | `coupling_phases_6s2s.csv` | 31 | the deliberate perturbation protocol, labelled by phase, with mean infrared level per window. Behind Figure 1. |
-| `sweep_discrimination.csv` | 5 | median NRMSE, AUC and Spearman rho for each context and horizon combination that was swept. |
-| `threshold_derivation_sweep.csv` | 5 | Youden J cutting points with 10,000 resample bootstrap intervals, and the 33rd and 67th percentiles, for each swept configuration. |
+| `sweep_discrimination.csv` | 4 | median NRMSE, AUC and Spearman rho for each context and horizon combination that was swept. |
+| `threshold_derivation_sweep.csv` | 4 | Youden J cutting points with 10,000 resample bootstrap intervals, and the 33rd and 67th percentiles, for each swept configuration. |
 | `coupling_protocol_results.csv` | 61 | the earlier 12.8 s configuration of the same perturbation protocol, kept for comparison. |
 | `paper_test_results.csv` | 26 | the paper sheet insertion test, 12.8 s configuration. |
+
+The 6 s / 2 s scoring of the paper sheet recording is in `poster_numbers_6s2s.csv`
+under the filename `coupling_test2.txt`. That is where the 0.948 spike on the
+poster comes from.
 
 ## Columns
 

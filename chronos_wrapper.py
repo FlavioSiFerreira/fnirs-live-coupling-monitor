@@ -1,17 +1,11 @@
 """Chronos T5 Small wrapper for live fNIRS coupling-quality scoring.
 
-Chronos is Amazon's pretrained time series model and is NOT redistributed with
-this repository. It is fetched at first run, either from the Hugging Face Hub or
-from a local copy placed next to this file.
+Chronos is Amazon's model and is not redistributed here. The checkpoint is
+resolved in this order:
 
-Resolution order for the checkpoint:
-
-1. the CHRONOS_LOCAL_DIR environment variable, if it points at a model folder
-2. ./models/chronos-t5-small next to this file
-3. the Hugging Face Hub identifier amazon/chronos-t5-small (needs internet once)
-
-Option 2 is what an offline machine uses: drop the downloaded model folder into
-models/ and nothing else changes.
+1. the CHRONOS_LOCAL_DIR environment variable, if it holds a model folder
+2. ./models/chronos-t5-small next to this file, which is the offline route
+3. the Hugging Face Hub identifier amazon/chronos-t5-small, needs internet once
 """
 from __future__ import annotations
 
@@ -43,6 +37,17 @@ def resolve_checkpoint() -> str:
     return CHRONOS_MODEL_ID
 
 
+def _from_pretrained(checkpoint):
+    """Load the checkpoint, tolerating the transformers rename of torch_dtype."""
+    try:
+        return ChronosPipeline.from_pretrained(
+            checkpoint, device_map="cpu", dtype=torch.float32)
+    except TypeError:
+        # transformers below 4.56 only accepts the older keyword
+        return ChronosPipeline.from_pretrained(
+            checkpoint, device_map="cpu", torch_dtype=torch.float32)
+
+
 def load_chronos_model():
     """Load Chronos T5 Small onto the CPU."""
     checkpoint = resolve_checkpoint()
@@ -50,22 +55,18 @@ def load_chronos_model():
     where = "Hugging Face Hub" if from_hub else "local folder"
     print(f"Loading Chronos T5 Small from the {where}...", flush=True)
     if from_hub:
-        print("  first run only: this downloads about 190 MB", flush=True)
+        print("  about 190 MB is downloaded the first time", flush=True)
     try:
-        pipeline = ChronosPipeline.from_pretrained(
-            checkpoint,
-            device_map="cpu",
-            torch_dtype=torch.float32,
-        )
+        pipeline = _from_pretrained(checkpoint)
     except Exception as exc:                       # noqa: BLE001 - user facing
-        raise SystemExit(
-            "\nCould not load Chronos T5 Small.\n"
-            f"  tried: {checkpoint}\n"
+        raise RuntimeError(
+            "could not load Chronos T5 Small.\n"
+            f"  tried:  {checkpoint}\n"
             f"  reason: {exc}\n\n"
-            "If this machine has no internet, download the model on another\n"
-            "machine and copy it into:\n"
-            f"  {LOCAL_MODEL_DIR}\n"
-            "See the Offline install section of README.md.\n"
+            "  If this machine has no internet, download the model on another\n"
+            "  machine and copy it into:\n"
+            f"    {LOCAL_MODEL_DIR}\n"
+            "  See the offline section of README.md."
         ) from exc
     print("Chronos model loaded.", flush=True)
     return pipeline

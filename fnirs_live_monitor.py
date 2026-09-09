@@ -308,11 +308,14 @@ def render_line(elapsed: float, value: float, r2: float, stable: bool) -> str:
 
 
 def open_log(script_dir: Path):
+    """Append to the log; earlier sessions are kept, not overwritten."""
     log_path = script_dir / "results" / "fnirs" / "live_monitor_log.csv"
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(log_path, "w", encoding="utf-8") as f:
-            f.write("timestamp,elapsed_sec,nrmse,r2,quality,filename\n")
+        is_new = not log_path.exists() or log_path.stat().st_size == 0
+        with open(log_path, "a", encoding="utf-8") as f:
+            if is_new:
+                f.write("timestamp,elapsed_sec,nrmse,r2,quality,filename\n")
         return log_path
     except OSError:
         return None
@@ -323,7 +326,7 @@ def log_row(log_path, elapsed, value, r2, label, filename) -> None:
         return
     try:
         with open(log_path, "a", encoding="utf-8") as f:
-            ts = datetime.datetime.now().strftime("%H:%M:%S")
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             f.write(f"{ts},{elapsed:.1f},{value:.4f},{r2:.4f},{label},{filename}\n")
     except OSError:
         pass
@@ -526,14 +529,11 @@ def main(argv=None) -> int:
               f"--replay \"{out}\"", flush=True)
         return 0
 
-    print("  loading Chronos model (first run downloads ~150 MB)...", flush=True)
     from chronos_wrapper import load_chronos_model
     try:
         model = load_chronos_model()
-    except Exception as exc:  # noqa: BLE001
-        print(f"\n  ERROR: could not load the Chronos model: {exc}\n"
-              "  Check the internet connection for the first run, or that the\n"
-              "  pre-cached model on the drive is reachable (HF_HOME).", flush=True)
+    except Exception as exc:  # noqa: BLE001 - the message is written for the user
+        print(f"\n  ERROR: {exc}", flush=True)
         return 1
     print("  model ready\n", flush=True)
 
