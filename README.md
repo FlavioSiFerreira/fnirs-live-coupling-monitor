@@ -26,6 +26,15 @@ The cutting points are the 33rd and 67th percentiles of 905 windows from 24
 recordings, checked against Youden J cut points from an independent cardiac
 reference. `reproduce_poster_numbers.py` prints how closely the two agree.
 
+## Which model
+
+Chronos T5 Small (46M) and TimesFM 2.5 (200M) were compared on the same 905
+windows at this operating point. They are equivalent, a median NRMSE of 0.391
+against 0.384, Wilcoxon p = 0.29. The score does not depend on the model, and
+Chronos was adopted because it is the smaller of the two. An earlier run that
+appeared to show TimesFM failing was a `torch_compile` artifact and is
+withdrawn, see `data/README.md`.
+
 ## Quick start on Windows
 
 1. Install Python 3.10 or newer from <https://www.python.org/downloads/>. Tick
@@ -147,6 +156,10 @@ the light level without moving the score.
   Not clinically validated.
 - Agreement with the cardiac reference is weak, AUC 0.62 to 0.65. This is a live
   triage aid, not a replacement for offline quality control.
+- In the deliberate perturbation tests the cardiac rhythm stayed recoverable
+  throughout, so none of them produced a true loss of signal. The tests show
+  what the score reacts to, which is light contamination and movement rather
+  than pressure, and not that it detects a lost sensor.
 - It answers whether a physiological signal is being collected, not whether the
   light intensity is right. Different headband pressures are not detected.
 - Each score costs about 0.4 s of CPU, so updates are a couple of seconds apart.

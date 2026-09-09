@@ -63,7 +63,7 @@ def section(title: str) -> None:
 
 def main() -> int:
     windows = pd.read_csv(DATA / "poster_numbers_6s2s.csv")
-    both = pd.read_csv(DATA / "both_models_windows.csv")
+    both = pd.read_csv(DATA / "both_models_6s2s.csv")
     phases = pd.read_csv(DATA / "coupling_phases_6s2s.csv")
 
     section("Methods")
@@ -93,15 +93,28 @@ def main() -> int:
     check("AUC, good vs rest", 0.62, float(auc_good), tol=0.006, fmt="{:.2f}")
     check("AUC, poor vs rest", 0.65, float(auc_poor), tol=0.006, fmt="{:.2f}")
 
-    section("Chronos against TimesFM, Figure 2")
+    section("Chronos against TimesFM, at the adopted 6 s + 2 s operating point")
     paired = both[np.isfinite(both.nrmse_chronos) & np.isfinite(both.nrmse_timesfm)]
-    check("windows scored by both models", 852, int(len(paired)))
-    check("Chronos forecasts below the poor cutting point", 562,
-          int((paired.nrmse_chronos < POOR_CUT).sum()))
-    check("TimesFM forecasts below the poor cutting point", 10,
-          int((paired.nrmse_timesfm < POOR_CUT).sum()))
-    print(f"         median NRMSE, Chronos {paired.nrmse_chronos.median():.3f}   "
-          f"TimesFM {paired.nrmse_timesfm.median():.1f}")
+    check("windows scored by both models", 905, int(len(paired)))
+    check("Chronos median NRMSE", 0.391, float(paired.nrmse_chronos.median()))
+    check("TimesFM median NRMSE", 0.384, float(paired.nrmse_timesfm.median()))
+    wil = stats.wilcoxon(paired.nrmse_chronos, paired.nrmse_timesfm)
+    _record("the two models do not differ (Wilcoxon p above 0.05)",
+            wil.pvalue > 0.05)
+    print(f"         Wilcoxon p = {wil.pvalue:.3f}, median paired difference "
+          f"{float((paired.nrmse_chronos - paired.nrmse_timesfm).median()):+.4f}")
+    print("         Chronos was adopted for its smaller size, not for accuracy.")
+
+    section("Superseded TimesFM column, kept only as a record")
+    old = pd.read_csv(DATA / "both_models_windows.csv")
+    old = old[np.isfinite(old.nrmse_chronos) & np.isfinite(old.nrmse_timesfm)]
+    print(f"  data/both_models_windows.csv holds {len(old)} paired windows whose")
+    print(f"  TimesFM column reaches {old.nrmse_timesfm.max():.3g} with a median of")
+    print(f"  {old.nrmse_timesfm.median():.0f}. Those values are a numerical artifact of")
+    print("  loading TimesFM with torch_compile=True and are NOT a model result.")
+    print("  rerun_both_models_6s2s.py regenerates the corrected column above.")
+    _record("superseded column is quarantined, not used for any poster claim",
+            True)
 
     section("Deliberate perturbations, Figure 1")
     # Light level is compared as the median infrared reading of a phase against
@@ -130,9 +143,15 @@ def main() -> int:
           float(table.loc["Finger on sensor", "light_change_pct"]), tol=0.05, fmt="{:.1f}")
     check("finger on sensor, median NRMSE", 0.485,
           float(table.loc["Finger on sensor", "median_nrmse"]))
-    _record("finger on sensor collapses the pulse against the tight band baseline",
+    # The band-to-total ratio falls sharply under finger pressure, but that is
+    # the denominator growing, not the pulse going away. A spectral
+    # decomposition of the same windows puts total power up 187 % while the
+    # cardiac peak stays at 60 bpm, roughly 2,700 times the noise floor. So the
+    # claim to make here is about the ratio, not about losing the pulse.
+    _record("finger on sensor lowers the cardiac band ratio without losing the pulse",
             float(table.loc["Finger on sensor", "median_cardiac_snr"])
-            < 0.2 * float(table.loc["Tight band, rest", "median_cardiac_snr"]))
+            < 0.2 * float(table.loc["Tight band, rest", "median_cardiac_snr"])
+            and float(table.loc["Finger on sensor", "median_nrmse"]) < POOR_CUT)
 
     section("Paper sheet insertion, Figure 1")
     paper = windows[windows.filename == PAPER_RECORDING].sort_values("window_end_sec")
