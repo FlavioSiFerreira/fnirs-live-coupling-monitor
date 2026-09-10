@@ -1,0 +1,18 @@
+# the environment the launcher builds
+.venv/
+
+# Chronos is downloaded, never committed
+models/
+
+# offline install wheels, supplied per machine
+wheels/
+
+# generated at run time
+results/
+demo_recording.txt
+*.log
+
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
