@@ -24,16 +24,42 @@ no training or calibration on fNIRS data.
 
 The cutting points are the 33rd and 67th percentiles of 905 windows from 24
 recordings, checked against Youden J cut points from an independent cardiac
-reference. `reproduce_poster_numbers.py` prints how closely the two agree.
+reference. That pooled distribution has a median NRMSE of 0.387 and an
+interquartile range of 0.278 to 0.570. `reproduce_poster_numbers.py` prints how
+closely the two agree.
+
+## Status: this is a feasibility test
+
+Not a validated instrument, and not a clinical device. Every number here comes
+from one healthy adult, 24 recordings, 905 analysis windows, one sensor model.
+Nothing has been replicated on a second person, on a second device, or in a
+clinical setting. The perturbation tests show what the score reacts to, not that
+it detects a lost sensor, because the cardiac rhythm stayed recoverable in all of
+them. Read the Limitations section before acting on a score, and treat the tier
+as a prompt to look at the signal rather than a verdict on it.
 
 ## Which model
 
 Chronos T5 Small (46M) and TimesFM 2.5 (200M) were compared on the same 905
-windows at this operating point. They are equivalent, a median NRMSE of 0.391
-against 0.384, Wilcoxon p = 0.29. The score does not depend on the model, and
-Chronos was adopted because it is the smaller of the two. An earlier run that
-appeared to show TimesFM failing was a `torch_compile` artifact and is
-withdrawn, see `data/README.md`.
+windows at this operating point. The two error distributions are equivalent, a
+median NRMSE of 0.391 against 0.384, Wilcoxon p = 0.29. Chronos was adopted
+because it is the smaller of the two.
+
+Read that equivalence at the level it was measured. It is a statement about the
+two distributions, not about individual windows. Window by window the two models
+agree only moderately, Spearman rho = 0.62, and they place the same window in the
+same tier in 59.4 per cent of cases. A single window can change tier if the model
+is swapped. A non-significant Wilcoxon test is also not a proof of equivalence,
+only a failure to detect a difference at n = 905.
+
+The median of 0.391 above comes from the paired two-model run
+(`data/both_models_6s2s.csv`). The 0.387 quoted with the cutting points comes
+from the sweep that derived them (`data/sweep_discrimination.csv`). Same
+configuration and same 905 windows, two separate runs, and Chronos sampling is
+stochastic, which is the whole of the difference.
+
+An earlier run that appeared to show TimesFM failing was a `torch_compile`
+artifact and is withdrawn, see `data/README.md`.
 
 ## Quick start on Windows
 
@@ -152,10 +178,23 @@ the light level without moving the score.
 
 ## Limitations
 
-- Validated on one healthy adult, 24 recordings, biceps brachii and forehead.
-  Not clinically validated.
-- Agreement with the cardiac reference is weak, AUC 0.62 to 0.65. This is a live
-  triage aid, not a replacement for offline quality control.
+- This is a feasibility test. One healthy adult, 24 recordings, biceps brachii
+  and forehead, one sensor model, 905 analysis windows. No second participant, no
+  second device, no clinical validation, no test-retest.
+- Agreement with the cardiac reference is weak, AUC 0.62 to 0.65, Spearman
+  rho = -0.27 across the 905 windows. On the conventional reading of AUC, the
+  0.5 to 0.7 band is poor discrimination. This is a live triage aid that tells
+  you to go and look at the signal, not a replacement for offline quality
+  control, and not a measurement of coupling.
+- The two cutting points are not equally well supported. At this 6 s
+  configuration the 67th percentile falls inside the bootstrap interval of the
+  Youden J poor cut, while the 33rd percentile falls just outside it. Both
+  agreed at the earlier 12.8 s configuration. `reproduce_poster_numbers.py`
+  prints both intervals.
+- The tiers are percentiles of one pooled distribution, so roughly a third of
+  windows land in each tier by construction. A tier is a position within this
+  participant's own recordings, not an absolute quality threshold, and it does
+  not transfer to another person or device without re-deriving it.
 - In the deliberate perturbation tests the cardiac rhythm stayed recoverable
   throughout, so none of them produced a true loss of signal. The tests show
   what the score reacts to, which is light contamination and movement rather
